@@ -12,10 +12,8 @@ import (
 )
 
 func TestShoutrrrDefaultTemplate(t *testing.T) {
-	cmd := new(cobra.Command)
-
 	shoutrrr := &shoutrrrTypeNotifier{
-		template: getShoutrrrTemplate(cmd),
+		template: getShoutrrrTemplate(),
 	}
 
 	entries := []*log.Entry{
@@ -32,12 +30,13 @@ func TestShoutrrrDefaultTemplate(t *testing.T) {
 func TestShoutrrrTemplate(t *testing.T) {
 	cmd := new(cobra.Command)
 	flags.RegisterNotificationFlags(cmd)
+	flags.BindViperFlags(cmd)
 	err := cmd.ParseFlags([]string{"--notification-template={{range .}}{{.Level}}: {{.Message}}{{println}}{{end}}"})
 
 	require.NoError(t, err)
 
 	shoutrrr := &shoutrrrTypeNotifier{
-		template: getShoutrrrTemplate(cmd),
+		template: getShoutrrrTemplate(),
 	}
 
 	entries := []*log.Entry{
@@ -55,12 +54,13 @@ func TestShoutrrrTemplate(t *testing.T) {
 func TestShoutrrrStringFunctions(t *testing.T) {
 	cmd := new(cobra.Command)
 	flags.RegisterNotificationFlags(cmd)
+	flags.BindViperFlags(cmd)
 	err := cmd.ParseFlags([]string{"--notification-template={{range .}}{{.Level | printf \"%v\" | ToUpper }}: {{.Message | ToLower }} {{.Message | Title }}{{println}}{{end}}"})
 
 	require.NoError(t, err)
 
 	shoutrrr := &shoutrrrTypeNotifier{
-		template: getShoutrrrTemplate(cmd),
+		template: getShoutrrrTemplate(),
 	}
 
 	entries := []*log.Entry{
@@ -77,14 +77,14 @@ func TestShoutrrrStringFunctions(t *testing.T) {
 
 func TestShoutrrrInvalidTemplateUsesTemplate(t *testing.T) {
 	cmd := new(cobra.Command)
-
 	flags.RegisterNotificationFlags(cmd)
+	flags.BindViperFlags(cmd)
 	err := cmd.ParseFlags([]string{"--notification-template={{"})
 
 	require.NoError(t, err)
 
 	shoutrrr := &shoutrrrTypeNotifier{
-		template: getShoutrrrTemplate(cmd),
+		template: getShoutrrrTemplate(),
 	}
 
 	shoutrrrDefault := &shoutrrrTypeNotifier{
@@ -108,7 +108,7 @@ type blockingRouter struct {
 	sent   chan bool
 }
 
-func (b blockingRouter) Send(message string, params *types.Params) []error {
+func (b blockingRouter) Send(_ string, _ *types.Params) []error {
 	_ = <-b.unlock
 	b.sent <- true
 	return nil
@@ -141,15 +141,13 @@ func TestSlowNotificationSent(t *testing.T) {
 }
 
 func sendNotificationsWithBlockingRouter() (*shoutrrrTypeNotifier, *blockingRouter) {
-	cmd := new(cobra.Command)
-
 	router := &blockingRouter{
 		unlock: make(chan bool, 1),
 		sent:   make(chan bool, 1),
 	}
 
 	shoutrrr := &shoutrrrTypeNotifier{
-		template: getShoutrrrTemplate(cmd),
+		template: getShoutrrrTemplate(),
 		messages: make(chan string, 1),
 		done:     make(chan bool),
 		Router:   router,

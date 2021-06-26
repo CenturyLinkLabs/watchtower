@@ -13,8 +13,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 func TestActions(t *testing.T) {
@@ -28,13 +26,14 @@ var _ = Describe("notifications", func() {
 
 			command := cmd.NewRootCommand()
 			flags.RegisterNotificationFlags(command)
+			flags.BindViperFlags(command)
 
 			err := command.ParseFlags([]string{
 				"--notifications",
 				"shoutrrr",
 			})
 			Expect(err).NotTo(HaveOccurred())
-			notif := notifications.NewNotifier(command)
+			notif := notifications.NewNotifier()
 
 			Expect(notif.String()).To(Equal("none"))
 		})
@@ -49,7 +48,7 @@ var _ = Describe("notifications", func() {
 			channel := "123456789"
 			token := "abvsihdbau"
 			color := notifications.ColorInt
-			title := url.QueryEscape(notifications.GetTitle(command))
+			title := url.QueryEscape(notifications.GetTitle())
 			expected := fmt.Sprintf("discord://%s@%s?color=0x%x&colordebug=0x0&colorerror=0x0&colorinfo=0x0&colorwarn=0x0&splitlines=Yes&title=%s&username=watchtower", token, channel, color, title)
 			buildArgs := func(url string) []string {
 				return []string{
@@ -80,7 +79,7 @@ var _ = Describe("notifications", func() {
 				tokenB := "bbb"
 				tokenC := "ccc"
 				color := url.QueryEscape(notifications.ColorHex)
-				title := url.QueryEscape(notifications.GetTitle(command))
+				title := url.QueryEscape(notifications.GetTitle())
 
 				hookURL := fmt.Sprintf("https://hooks.slack.com/services/%s/%s/%s", tokenA, tokenB, tokenC)
 				expectedOutput := fmt.Sprintf("slack://%s@%s/%s/%s?color=%s&title=%s", username, tokenA, tokenB, tokenC, color, title)
@@ -107,7 +106,7 @@ var _ = Describe("notifications", func() {
 
 				token := "aaa"
 				host := "shoutrrr.local"
-				title := url.QueryEscape(notifications.GetTitle(command))
+				title := url.QueryEscape(notifications.GetTitle())
 
 				expectedOutput := fmt.Sprintf("gotify://%s/%s?title=%s", host, token, title)
 
@@ -135,7 +134,7 @@ var _ = Describe("notifications", func() {
 				tokenB := "33333333012222222222333333333344"
 				tokenC := "44444444-4444-4444-8444-cccccccccccc"
 				color := url.QueryEscape(notifications.ColorHex)
-				title := url.QueryEscape(notifications.GetTitle(command))
+				title := url.QueryEscape(notifications.GetTitle())
 
 				hookURL := fmt.Sprintf("https://outlook.office.com/webhook/%s/IncomingWebhook/%s/%s", tokenA, tokenB, tokenC)
 				expectedOutput := fmt.Sprintf("teams://%s/%s/%s?color=%s&title=%s", tokenA, tokenB, tokenC, color, title)
@@ -214,18 +213,19 @@ func buildExpectedURL(username string, password string, host string, port int, f
 		url.QueryEscape(to))
 }
 
-type builderFn = func(c *cobra.Command, acceptedLogLevels []log.Level) types.ConvertibleNotifier
+type builderFn = func() types.ConvertibleNotifier
 
 func testURL(builder builderFn, args []string, expectedURL string) {
 
 	command := cmd.NewRootCommand()
 	flags.RegisterNotificationFlags(command)
+	flags.BindViperFlags(command)
 
 	err := command.ParseFlags(args)
 	Expect(err).NotTo(HaveOccurred())
 
-	notifier := builder(command, []log.Level{})
-	actualURL, err := notifier.GetURL(command)
+	notifier := builder()
+	actualURL, err := notifier.GetURL()
 
 	Expect(err).NotTo(HaveOccurred())
 
